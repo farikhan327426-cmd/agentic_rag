@@ -1,0 +1,20 @@
+# config/settings.yaml
+
+llm:
+  main_provider: "groq"
+  fast_model: "llama-3.3-70b-versatile" # Updated from 3.1 to 3.3
+  cheap_model: "llama-3.1-8b-instant"
+  temperature: 0.0
+
+embeddings:
+  provider: "google"
+  model: "gemini-embedding-001" 
+
+vector_db:
+  url: "http://localhost:6333" # This will work for your Docker setup
+  collection_name: "agentic_rag_docs"
+
+# OpenRouter fallback if Groq hits rate limits
+fallback:
+  provider: "openrouter"
+  model: "anthropic/claude-3-haiku"

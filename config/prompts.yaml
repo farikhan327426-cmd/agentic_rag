@@ -5,7 +5,8 @@ router_prompts:
     
     Guidelines:
     - Choose 'vectorstore' if answering requires specific facts from company documents, policies, or pricing.
-    - Choose 'direct' for general greetings, definitions, or common knowledge.
+    - Choose 'vectorstore' if the user asks what kind of information you have, what you know, or what your capabilities are (this helps avoid hallucinated general knowledge).
+    - Choose 'direct' ONLY for general greetings (e.g., "hi", "hello"), definitions, or common knowledge completely unrelated to the company.
     - If unsure, choose 'vectorstore'.
 
 grader_prompts:

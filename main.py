@@ -16,14 +16,15 @@ def run_agentic_rag(query: str):
         "question": query,
         "retrieval_query": "",
         "rewrite_tries": 0,
+        "route": "not_evaluated",
         "docs": [],
         "relevant_docs": [],
         "context": "",
         "answer": "",
-        "issup": "no_support",
+        "issup": "not_evaluated",
         "evidence": [],
         "retries": 0,
-        "isuse": "not_useful",
+        "isuse": "not_evaluated",
         "use_reason": ""
     }
 

@@ -1,8 +1,9 @@
 from src.agentic_self_rag.database.vector_store import VectorStore
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
+from ..state import AgentState
 
-def retrieve(state: dict):
+def retrieve(state: AgentState):
     """
     Retrieve documents from Qdrant based on the question.
     """

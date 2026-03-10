@@ -1,7 +1,8 @@
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
+from ..state import AgentState
 
-def revise_answer(state: dict):
+def revise_answer(state: AgentState):
     """Strictly refines the answer using only context quotes."""
     logger.warning("--- REVISING ANSWER (STRICT MODE) ---")
     llm = ModelFactory.get_llm(model_type="main")

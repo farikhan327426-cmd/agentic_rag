@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.core.exceptions import ConfigurationError
+from ..state import AgentState
 
 class RouteQuery(BaseModel):
     """Route a user query to the most appropriate datasource."""
@@ -13,7 +14,7 @@ class RouteQuery(BaseModel):
         description="Given a user question choose to route it to direct or vectorstore.",
     )
 
-def route_question(state: dict):
+def route_question(state: AgentState):
     question = state["question"]
     logger.info("--- ROUTING QUESTION ---")
 

@@ -1,11 +1,12 @@
 from pydantic import BaseModel, Field
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
+from ..state import AgentState
 
 class RewriteDecision(BaseModel):
     retrieval_query: str = Field(description="Optimized query for vector retrieval.")
 
-def rewrite_question(state: dict):
+def rewrite_question(state: AgentState):
     """Optimizes query for vector retrieval."""
     logger.info("--- REWRITING QUESTION ---")
     llm = ModelFactory.get_llm(model_type="cheap")

@@ -6,11 +6,6 @@ from langchain_openai import ChatOpenAI
 from src.agentic_self_rag.core.config_loader import settings
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.core.exceptions import ModelProviderError
-from dotenv import load_dotenv
-
-load_dotenv(override=True)
-groq_api_key = os.getenv("GROQ_API_KEY")
-
 
 class ModelFactory:
     """
@@ -38,12 +33,11 @@ class ModelFactory:
             if provider == "groq":
                 logger.info(f"Initializing Groq LLM: {model_name}")
                 return ChatGroq(
-                    #api_key=settings.env.GROQ_API_KEY,
-                    api_key=groq_api_key,
+                    api_key=settings.env.GROQ_API_KEY,
                     model=model_name,
                     temperature=temp
                 )
-                logger.info(f"Groq LLM initialized: {model_name}")
+                #logger.info(f"Groq LLM initialized: {model_name}")
 
             elif provider == "google":
                 logger.info(f"Initializing Google LLM: {model_name}")

@@ -1,8 +1,9 @@
 import yaml
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
+from ..state import AgentState
 
-def generate(state: dict):
+def generate(state: AgentState):
     """
     Generate an answer using the retrieved context.
     """
@@ -32,7 +33,7 @@ def generate(state: dict):
     return {"answer": response.content, "context": context, "question": question}
 
 
-def generate_direct(state: dict):
+def generate_direct(state: AgentState):
     """
     Generate an answer without using RAG context.
     """

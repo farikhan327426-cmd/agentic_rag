@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Literal, List
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
+from ..state import AgentState
 
 # Pydantic Schemas for Structured Output
 class RelevanceDecision(BaseModel):
@@ -16,7 +17,7 @@ class IsUSEDecision(BaseModel):
     isuse: Literal["useful", "not_useful"]
     reason: str
 
-def is_relevant(state: dict):
+def is_relevant(state: AgentState):
     """Strictly filters documents based on topic area."""
     logger.info("--- FILTERING DOCUMENTS FOR TOPIC RELEVANCE ---")
     llm = ModelFactory.get_llm(model_type="cheap")
@@ -36,7 +37,7 @@ def is_relevant(state: dict):
     
     return {"relevant_docs": relevant_docs}
 
-def is_sup(state: dict):
+def is_sup(state: AgentState):
     """Checks if answer is grounded in context (Hallucination check)."""
     logger.info("--- VERIFYING GROUNDEDNESS (IsSUP) ---")
     llm = ModelFactory.get_llm(model_type="cheap")
@@ -52,7 +53,7 @@ def is_sup(state: dict):
     logger.info(f"--- IsSUP Result: {res.issup} | Evidence: {res.evidence} ---")
     return {"issup": res.issup, "evidence": res.evidence}
 
-def is_use(state: dict):
+def is_use(state: AgentState):
     """Checks if the answer actually answers the user question."""
     logger.info("--- CHECKING ANSWER UTILITY ---")
     llm = ModelFactory.get_llm(model_type="cheap")

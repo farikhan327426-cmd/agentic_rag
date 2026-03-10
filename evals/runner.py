@@ -1,9 +1,15 @@
 import json
 import sys
+import warnings
 from pathlib import Path
 from datasets import Dataset
 from ragas import evaluate
-from ragas.metrics.collections import (
+
+# 1. THE FIX: Hide annoying Ragas deprecation warnings cleanly
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# 2. Revert back to the stable metrics that worked perfectly with LangChain
+from ragas.metrics import (
     Faithfulness,
     AnswerRelevancy,
     ContextPrecision,
@@ -85,10 +91,8 @@ def run_evaluation():
         contexts.append(doc_texts)
 
     # 2. FORMATTING: Convert to HuggingFace Dataset format
-    
     if not questions:
-        logger.error("No valid questions found in dataset. Please add questions to dataset.json")
-        logger.info(r"Use: uv run .\evals\create_dataset.py to auto-generate questions from your PDFs")
+        logger.error("No valid questions found in dataset.")
         return
     
     dataset_dict = {
@@ -99,24 +103,24 @@ def run_evaluation():
     }
     hf_dataset = Dataset.from_dict(dataset_dict)
 
-    # 3. JUDGE INITIALIZATION: Use your factory to get the LLM/Embeddings
+    # 3. JUDGE INITIALIZATION: Use your factory as it was perfectly working before
     judge_llm = ModelFactory.get_llm(model_type="main")
     judge_embeddings = ModelFactory.get_embeddings()
 
-    # 4. EVALUATION PHASE: Ragas calculates the scores
+    # 4. EVALUATION PHASE: Ragas calculates the scores using global llm/embeddings
     logger.info("Graph execution complete. Handing over to Ragas for grading...")
     result = evaluate(
         dataset=hf_dataset,
         metrics=[
-            ContextPrecision(llm=judge_llm),
-            ContextRecall(llm=judge_llm),
-            Faithfulness(llm=judge_llm),
-            AnswerRelevancy(llm=judge_llm, embeddings=judge_embeddings)
+            ContextPrecision(), 
+            ContextRecall(),    
+            Faithfulness(),      
+            AnswerRelevancy()   
         ],
         llm=judge_llm,
         embeddings=judge_embeddings
     )
-
+    
     # 5. EXPORT RESULTS
     logger.info("--- EVALUATION SCORES ---")
     print(result)

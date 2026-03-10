@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List
@@ -7,6 +7,11 @@ from dotenv import load_dotenv
 
 from src.agentic_self_rag.agentic_rag.graph import app as rag_app
 from src.agentic_self_rag.core.logger import logger
+from src.agentic_self_rag.ingestion.processor import DocumentProcessor
+from src.agentic_self_rag.ingestion.embedder import DataIngestor
+import os
+import shutil
+import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -96,6 +101,52 @@ async def ask_question(request: QueryRequest):
             status_code=500, 
             detail=f"Failed to process query through Self-RAG pipeline: {str(e)}"
         )
+
+@app.post("/api/v1/ingest", tags=["Document Ingestion"])
+async def ingest_document(file: UploadFile = File(...)):
+    """
+    Upload a PDF document to be chunked, embedded, and indexed in the Vector Database.
+    """
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+    
+    logger.info(f"--- API REQUEST RECEIVED TO INGEST FILE: {file.filename} ---")
+    
+    # Create a temporary directory to store the uploaded file
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, file.filename)
+    
+    try:
+        # Save uploaded file safely
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Process and chunk the directory containing the PDF
+        processor = DocumentProcessor()
+        chunks = processor.process_pdfs(temp_dir)
+        
+        if not chunks:
+            raise ValueError("No text could be extracted or chunked from the uploaded PDF.")
+            
+        # Embed chunks and store in Qdrant Vector DB
+        ingestor = DataIngestor()
+        ingestor.ingest_chunks(chunks)
+        
+        return {
+            "status": "success", 
+            "message": f"Successfully ingested {file.filename}", 
+            "chunks_processed": len(chunks)
+        }
+        
+    except Exception as e:
+        logger.error(f"Ingestion API failed for {file.filename}: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to ingest document: {str(e)}"
+        )
+    finally:
+        # Clean up the temporary directory to avoid storage leaks
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 @app.get("/health", tags=["Health"])
 async def health_check():

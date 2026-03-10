@@ -70,4 +70,14 @@ def create_graph():
 
     return workflow.compile()
 
-app = create_graph()
+
+# Lazy initialization - graph is only compiled when explicitly requested
+# This prevents compilation overhead on module import
+_graph_instance = None
+
+def get_graph():
+    """Get or create the compiled graph instance (lazy initialization)."""
+    global _graph_instance
+    if _graph_instance is None:
+        _graph_instance = create_graph()
+    return _graph_instance

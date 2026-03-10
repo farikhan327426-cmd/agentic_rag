@@ -5,7 +5,7 @@ from typing import List
 import uvicorn
 from dotenv import load_dotenv
 
-from src.agentic_self_rag.agentic_rag.graph import app as rag_app
+from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.ingestion.processor import DocumentProcessor
 from src.agentic_self_rag.ingestion.embedder import DataIngestor
@@ -79,7 +79,8 @@ async def ask_question(request: QueryRequest):
 
     try:
         # We use invoke sequentially for REST APIs
-        result = rag_app.invoke(initial_state, config={"recursion_limit": 50})
+        rag_graph = get_graph()  # Lazy initialization on first use
+        result = rag_graph.invoke(initial_state, config={"recursion_limit": 50})
         
         # Structure the successful execution payload
         return QueryResponse(

@@ -1,4 +1,4 @@
-from src.agentic_self_rag.agentic_rag.graph import app
+from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from dotenv import load_dotenv
 
@@ -11,6 +11,8 @@ def run_agentic_rag(query: str):
     """
     logger.info(f"--- STARTING EXECUTION FOR: {query} ---")
     
+    # Get the compiled graph instance (lazy initialization)
+    graph = get_graph()
     # Initial State matching your specific requirements
     initial_state = {
         "question": query,
@@ -31,7 +33,7 @@ def run_agentic_rag(query: str):
     # Run the graph (using recursion_limit for the revise/rewrite loops)
     try:
         # We use invoke to get the final result, or stream for real-time logs
-        result = app.invoke(initial_state, config={"recursion_limit": 50})
+        result = graph.invoke(initial_state, config={"recursion_limit": 50})
         
         # Professional Output Report
         print("\n" + "="*30)

@@ -3,6 +3,10 @@ from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
 from ..state import AgentState
 
+# Load prompts once at module import time
+with open("config/prompts.yaml", "r") as f:
+    PROMPTS = yaml.safe_load(f)
+
 def generate(state: AgentState):
     """
     Generate an answer using the retrieved context.
@@ -11,10 +15,8 @@ def generate(state: AgentState):
     relevant_docs = state["relevant_docs"]
     logger.info("--- GENERATING ANSWER ---")
 
-    # 1. Load the prompt from YAML
-    with open("config/prompts.yaml", "r") as f:
-        prompts = yaml.safe_load(f)
-    system_prompt = prompts["rag_prompts"]["generation_instructions"]
+    # 1. Access prompt from memory (loaded at module import)
+    system_prompt = PROMPTS["rag_prompts"]["generation_instructions"]
 
     # 2. Prepare the LLM (Using our Factory)
     llm = ModelFactory.get_llm(model_type="main")
@@ -40,9 +42,8 @@ def generate_direct(state: AgentState):
     question = state["question"]
     logger.info("--- GENERATING DIRECT ANSWER ---")
 
-    with open("config/prompts.yaml", "r") as f:
-        prompts = yaml.safe_load(f)
-    system_prompt = prompts["rag_prompts"]["direct_instructions"]
+    # Access prompt from memory (loaded at module import)
+    system_prompt = PROMPTS["rag_prompts"]["direct_instructions"]
 
     llm = ModelFactory.get_llm(model_type="main")
     messages = [

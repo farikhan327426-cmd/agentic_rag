@@ -5,6 +5,10 @@ from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
 from ..state import AgentState
 
+# Load prompts once at module import time
+with open("config/prompts.yaml", "r") as f:
+    PROMPTS = yaml.safe_load(f)
+
 # Pydantic Schemas for Structured Output
 class RelevanceDecision(BaseModel):
     is_relevant: bool = Field(description="True if doc discusses the same topic area.")
@@ -23,13 +27,10 @@ def is_relevant(state: AgentState):
     llm = ModelFactory.get_llm(model_type="cheap")
     structured_llm = llm.with_structured_output(RelevanceDecision)
     
-    with open("config/prompts.yaml", "r") as f:
-        prompts = yaml.safe_load(f)
-    
     relevant_docs = []
     for doc in state.get("docs", []):
         res = structured_llm.invoke([
-            {"role": "system", "content": prompts["grader_prompts"]["relevance_instructions"]},
+            {"role": "system", "content": PROMPTS["grader_prompts"]["relevance_instructions"]},
             {"role": "user", "content": f"Question: {state['question']}\nDoc: {doc['text']}"}
         ])
         if res.is_relevant:
@@ -43,11 +44,8 @@ def is_sup(state: AgentState):
     llm = ModelFactory.get_llm(model_type="cheap")
     structured_llm = llm.with_structured_output(IsSUPDecision)
 
-    with open("config/prompts.yaml", "r") as f:
-        prompts = yaml.safe_load(f)
-
     res = structured_llm.invoke([
-        {"role": "system", "content": prompts["grader_prompts"]["issup_instructions"]},
+        {"role": "system", "content": PROMPTS["grader_prompts"]["issup_instructions"]},
         {"role": "user", "content": f"Context: {state['context']}\nAnswer: {state['answer']}"}
     ])
     logger.info(f"--- IsSUP Result: {res.issup} | Evidence: {res.evidence} ---")
@@ -59,11 +57,8 @@ def is_use(state: AgentState):
     llm = ModelFactory.get_llm(model_type="cheap")
     structured_llm = llm.with_structured_output(IsUSEDecision)
 
-    with open("config/prompts.yaml", "r") as f:
-        prompts = yaml.safe_load(f)
-
     res = structured_llm.invoke([
-        {"role": "system", "content": prompts["grader_prompts"]["isuse_instructions"]},
+        {"role": "system", "content": PROMPTS["grader_prompts"]["isuse_instructions"]},
         {"role": "user", "content": f"Question: {state['question']}\nAnswer: {state['answer']}"}
     ])
     logger.info(f"--- IsUSE Result: {res.isuse} | Reason: {res.reason} ---")

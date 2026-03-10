@@ -6,6 +6,8 @@ from typing import Dict, Any
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+from dotenv import load_dotenv
+load_dotenv(override=True)  # Load environment variables from .env file
 
 class EnvConfig(BaseSettings):
     """

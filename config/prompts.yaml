@@ -1,51 +1,58 @@
-rag_prompts:
-  traditional_rag: |
-    You are an assistant for question-answering tasks. 
-    Use the following pieces of retrieved context to answer the question. 
-    If you don't know the answer, just say that you don't know. 
-    Use three sentences maximum and keep the answer concise.
-
-    Question: {question} 
-    Context: {context} 
-    Answer:
-
 router_prompts:
-  router_instructions: |
-    You are an expert at routing a user question to a vectorstore or direct generation.
-    The vectorstore contains documents related to your knowledge base.
-    Use vectorstore for questions on these topics. For all other questions (greetings, general knowledge), use direct generation.
-
-    Return a JSON object with a single key 'datasource' and value 'vectorstore' or 'direct'.
+  instructions: |
+    You decide whether retrieval is needed.
+    Return JSON with key: 'datasource' (values: 'vectorstore' or 'direct').
+    
+    Guidelines:
+    - Choose 'vectorstore' if answering requires specific facts from company documents, policies, or pricing.
+    - Choose 'direct' for general greetings, definitions, or common knowledge.
+    - If unsure, choose 'vectorstore'.
 
 grader_prompts:
-  retrieval_grader_instructions: |
-    You are a grader assessing relevance of a retrieved document to a user question. 
-    If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. 
-    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question.
+  relevance_instructions: |
+    You are judging document relevance at a TOPIC level.
+    Return JSON with key: 'is_relevant' (boolean).
+    
+    A document is relevant if it discusses the same entity or topic area as the question. 
+    It does NOT need to contain the exact answer.
+    Example: HR policies are relevant to questions about notice period or benefits.
 
-    Return a JSON with a single key 'binary_score' and no other text.
+  issup_instructions: |
+    Verify if the ANSWER is supported by the CONTEXT.
+    Return JSON with keys: 'issup' (fully_supported, partially_supported, no_support) and 'evidence' (list of strings).
+    
+    - fully_supported: Every claim is explicitly in CONTEXT. No qualitative words added. IMPORTANT: If the answer explicitly states that the information is NOT present in the context or it cannot answer, you MUST return 'fully_supported'.
+    - partially_supported: Core facts match, but the answer adds interpretation (e.g., calling a policy 'generous' when context doesn't).
+    - no_support: Key claims are missing from context.
+    
+    Rules: Be extremely strict. If you see any qualitative phrasing not in context, choose 'partially_supported'.
+
+  isuse_instructions: |
+    Assess if the answer actually resolves the user question.
+    Return JSON with keys: 'isuse' (useful, not_useful) and 'reason'.
+    
+    - useful: The answer provides the information requested. It is OK if it includes helpful supplementary context or roles (like CEO, Founder, etc.).
+    - not_useful: The answer completely fails to address the question or is entirely off-topic.
+
+rag_prompts:
+  generation_instructions: |
+    You are a business RAG chatbot. Answer the question using ONLY the provided context. 
+    Do not mention 'context' or 'documents' in your response.
+  
+  direct_instructions: |
+    Answer using general knowledge. If the question requires specific company info you don't have, 
+    say 'I don't know based on general knowledge.'
+
+  revise_instructions: |
+    You are a STRICT reviser. Output ONLY direct quotes from the context.
+    - Use bullet points.
+    - Do NOT add any new words or explanations.
+    - Format: "- <direct quote>"
 
 rewriter_prompts:
   rewrite_instructions: |
-    You are a query re-writer that optimizes a user question for vectorstore retrieval.
-    Look at the initial question and formulate a better, more semantically rich version 
-    that will improve the chances of finding relevant documents in a vector database.
-
-    Initial Question: {question}
-    Optimized Question:
-
-hallucination_grader_prompts:
-  instructions: |
-    You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved documents. 
-    Give a binary score 'supported' or 'not supported'. 
-    'supported' means that the answer is derived directly from the documents without adding outside info.
-
-    Return a JSON with a single key 'binary_score'.
-
-answer_grader_prompts:
-  instructions: |
-    You are a grader assessing whether an answer addresses / resolves a user question.
-    Give a binary score 'useful' or 'not useful'. 
-    'useful' means that the answer actually provides the information the user asked for.
-
-    Return a JSON with a single key 'binary_score'.
+    Rewrite the user question into a query optimized for vector retrieval over company PDFs.
+    - Keep it short (6-16 words).
+    - Preserve key entities (Company names, product names).
+    - Add high-signal keywords.
+    Return JSON with key: 'retrieval_query'.

@@ -1,14 +1,16 @@
-from typing import TypedDict, List
+from typing import TypedDict, List, Literal
 
 class AgentState(TypedDict):
-    """
-    Represents the state of our agent.
-    """
     question: str
-    route: str
-    documents: List[str]
-    generation: str
-    relevance: str
-    hallucination: str
-    utility: str
-    retry_count: int
+    retrieval_query: str      # Optimized for vector search
+    rewrite_tries: int        # Counter for query rewriting
+    need_retrieval: bool      # Result from router
+    docs: List[dict]          # Raw chunks from Qdrant
+    relevant_docs: List[dict] # Filtered chunks
+    context: str              # Merged text for LLM
+    answer: str               # Current generation
+    issup: Literal["fully_supported", "partially_supported", "no_support"]
+    evidence: List[str]       # Quotes supporting the answer
+    retries: int              # Counter for answer revision
+    isuse: Literal["useful", "not_useful"]
+    use_reason: str

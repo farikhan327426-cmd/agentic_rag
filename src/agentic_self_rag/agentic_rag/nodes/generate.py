@@ -7,25 +7,29 @@ def generate(state: dict):
     Generate an answer using the retrieved context.
     """
     question = state["question"]
-    documents = state["documents"]
+    relevant_docs = state["relevant_docs"]
     logger.info("--- GENERATING ANSWER ---")
 
     # 1. Load the prompt from YAML
     with open("config/prompts.yaml", "r") as f:
         prompts = yaml.safe_load(f)
-    prompt_template = prompts["rag_prompts"]["traditional_rag"]
+    system_prompt = prompts["rag_prompts"]["generation_instructions"]
 
     # 2. Prepare the LLM (Using our Factory)
     llm = ModelFactory.get_llm(model_type="main")
 
     # 3. Format the prompt
-    context = "\n\n".join(documents)
-    formatted_prompt = prompt_template.format(context=context, question=question)
+    context = "\n\n".join([doc["text"] for doc in relevant_docs])
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Context: {context}\n\nQuestion: {question}"}
+    ]
 
     # 4. Invoke LLM
-    response = llm.invoke(formatted_prompt)
+    response = llm.invoke(messages)
     
-    return {"generation": response.content, "question": question}
+    logger.info(f"--- GENERATED ANSWER: {response.content} ---")
+    return {"answer": response.content, "context": context, "question": question}
 
 
 def generate_direct(state: dict):
@@ -35,7 +39,16 @@ def generate_direct(state: dict):
     question = state["question"]
     logger.info("--- GENERATING DIRECT ANSWER ---")
 
+    with open("config/prompts.yaml", "r") as f:
+        prompts = yaml.safe_load(f)
+    system_prompt = prompts["rag_prompts"]["direct_instructions"]
+
     llm = ModelFactory.get_llm(model_type="main")
-    response = llm.invoke(f"Answer the following question directly and concisely: {question}")
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Question: {question}"}
+    ]
+    response = llm.invoke(messages)
     
-    return {"generation": response.content}
+    logger.info(f"--- GENERATED DIRECT ANSWER: {response.content} ---")
+    return {"answer": response.content}

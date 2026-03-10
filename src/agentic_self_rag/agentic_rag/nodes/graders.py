@@ -1,81 +1,69 @@
 import yaml
 from pydantic import BaseModel, Field
+from typing import Literal, List
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 from src.agentic_self_rag.core.logger import logger
 
-class GradeRetrieval(BaseModel):
-    """Binary score for relevance check on retrieved documents."""
-    binary_score: str = Field(description="Document is relevant to the question, 'yes' or 'no'")
+# Pydantic Schemas for Structured Output
+class RelevanceDecision(BaseModel):
+    is_relevant: bool = Field(description="True if doc discusses the same topic area.")
 
-def grade_documents(state: dict):
-    """
-    Determines whether the retrieved documents are relevant to the question.
-    """
-    question = state["question"]
-    documents = state["documents"]
-    
-    logger.info("--- CHECKING DOCUMENT RELEVANCE ---")
+class IsSUPDecision(BaseModel):
+    issup: Literal["fully_supported", "partially_supported", "no_support"]
+    evidence: List[str] = Field(default_factory=list)
 
-    # 1. Setup Grader
+class IsUSEDecision(BaseModel):
+    isuse: Literal["useful", "not_useful"]
+    reason: str
+
+def is_relevant(state: dict):
+    """Strictly filters documents based on topic area."""
+    logger.info("--- FILTERING DOCUMENTS FOR TOPIC RELEVANCE ---")
     llm = ModelFactory.get_llm(model_type="cheap")
-    structured_grader = llm.with_structured_output(GradeRetrieval)
-
-    # 2. Load Prompt
+    structured_llm = llm.with_structured_output(RelevanceDecision)
+    
     with open("config/prompts.yaml", "r") as f:
         prompts = yaml.safe_load(f)
-    system_prompt = prompts["grader_prompts"]["retrieval_grader_instructions"]
-
-    # 3. Grade the documents
-    # In a professional setup, we check if the collective context is useful
-    combined_context = "\n\n".join(documents)
     
-    scoring = structured_grader.invoke([
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Retrieved context: \n\n {combined_context} \n\n User question: {question}"}
-    ])
-
-    relevance = scoring.binary_score.lower()
-    logger.info(f"--- RELEVANCE SCORE: {relevance} ---")
+    relevant_docs = []
+    for doc in state.get("docs", []):
+        res = structured_llm.invoke([
+            {"role": "system", "content": prompts["grader_prompts"]["relevance_instructions"]},
+            {"role": "user", "content": f"Question: {state['question']}\nDoc: {doc['text']}"}
+        ])
+        if res.is_relevant:
+            relevant_docs.append(doc)
     
-    return {"relevance": relevance, "documents": documents, "question": question}
+    return {"relevant_docs": relevant_docs}
 
-
-class GradeHallucination(BaseModel):
-    binary_score: str = Field(description="Answer is grounded in the facts, 'supported' or 'not supported'")
-
-class GradeAnswer(BaseModel):
-    binary_score: str = Field(description="Answer addresses the question, 'useful' or 'not useful'")
-
-def grade_generation_v_documents(state: dict):
-    """Determines whether the generation is grounded in the documents."""
-    logger.info("--- CHECKING FOR HALLUCINATIONS ---")
-    
+def is_sup(state: dict):
+    """Checks if answer is grounded in context (Hallucination check)."""
+    logger.info("--- VERIFYING GROUNDEDNESS (IsSUP) ---")
     llm = ModelFactory.get_llm(model_type="cheap")
-    structured_grader = llm.with_structured_output(GradeHallucination)
+    structured_llm = llm.with_structured_output(IsSUPDecision)
 
     with open("config/prompts.yaml", "r") as f:
         prompts = yaml.safe_load(f)
 
-    score = structured_grader.invoke([
-        {"role": "system", "content": prompts["hallucination_grader_prompts"]["instructions"]},
-        {"role": "user", "content": f"Documents: {state['documents']} \n\n Answer: {state['generation']}"}
+    res = structured_llm.invoke([
+        {"role": "system", "content": prompts["grader_prompts"]["issup_instructions"]},
+        {"role": "user", "content": f"Context: {state['context']}\nAnswer: {state['answer']}"}
     ])
+    logger.info(f"--- IsSUP Result: {res.issup} | Evidence: {res.evidence} ---")
+    return {"issup": res.issup, "evidence": res.evidence}
 
-    return {"hallucination": score.binary_score.lower()}
-
-def grade_generation_v_question(state: dict):
-    """Determines whether the generation actually answers the question."""
+def is_use(state: dict):
+    """Checks if the answer actually answers the user question."""
     logger.info("--- CHECKING ANSWER UTILITY ---")
-    
     llm = ModelFactory.get_llm(model_type="cheap")
-    structured_grader = llm.with_structured_output(GradeAnswer)
+    structured_llm = llm.with_structured_output(IsUSEDecision)
 
     with open("config/prompts.yaml", "r") as f:
         prompts = yaml.safe_load(f)
 
-    score = structured_grader.invoke([
-        {"role": "system", "content": prompts["answer_grader_prompts"]["instructions"]},
-        {"role": "user", "content": f"Question: {state['question']} \n\n Answer: {state['generation']}"}
+    res = structured_llm.invoke([
+        {"role": "system", "content": prompts["grader_prompts"]["isuse_instructions"]},
+        {"role": "user", "content": f"Question: {state['question']}\nAnswer: {state['answer']}"}
     ])
-
-    return {"utility": score.binary_score.lower()}
+    logger.info(f"--- IsUSE Result: {res.isuse} | Reason: {res.reason} ---")
+    return {"isuse": res.isuse, "use_reason": res.reason}

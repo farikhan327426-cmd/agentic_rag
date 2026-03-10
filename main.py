@@ -1,44 +1,68 @@
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from src.agentic_self_rag.agentic_rag.graph import app
 from src.agentic_self_rag.core.logger import logger
+from dotenv import load_dotenv
 
-# Initialize FastAPI
-fastapi_app = FastAPI(
-    title="Agentic Self-RAG API",
-    description="Industrial Grade Self-Correcting RAG System"
-)
+# Load environment variables
+load_dotenv()
 
-class QueryRequest(BaseModel):
-    question: str
+def run_agentic_rag(query: str):
+    """
+    Orchestrates the Self-RAG execution and prints a professional debug report.
+    """
+    logger.info(f"--- STARTING EXECUTION FOR: {query} ---")
+    
+    # Initial State matching your specific requirements
+    initial_state = {
+        "question": query,
+        "retrieval_query": "",
+        "rewrite_tries": 0,
+        "docs": [],
+        "relevant_docs": [],
+        "context": "",
+        "answer": "",
+        "issup": "no_support",
+        "evidence": [],
+        "retries": 0,
+        "isuse": "not_useful",
+        "use_reason": ""
+    }
 
-class QueryResponse(BaseModel):
-    answer: str
-    steps: list
-
-@fastapi_app.post("/ask", response_model=QueryResponse)
-async def ask_question(request: QueryRequest):
+    # Run the graph (using recursion_limit for the revise/rewrite loops)
     try:
-        inputs = {"question": request.question, "retry_count": 0}
-        steps = []
-        final_state = None
-
-        # Stream the graph execution
-        for output in app.stream(inputs):
-            for node, state in output.items():
-                steps.append(node)
-                final_state = state
+        # We use invoke to get the final result, or stream for real-time logs
+        result = app.invoke(initial_state, config={"recursion_limit": 50})
         
-        return QueryResponse(
-            answer=final_state["generation"],
-            steps=steps
-        )
+        # Professional Output Report
+        print("\n" + "="*30)
+        print("     RAG EXECUTION REPORT")
+        print("="*30)
+        print(f"QUESTION:  {query}")
+        print(f"ROUTE:     {result.get('route', 'N/A')}")
+        print(f"REWRITES:  {result.get('rewrite_tries', 0)}")
+        print(f"REVISIONS: {result.get('retries', 0)}")
+        
+        print("\nVERIFICATION (IsSUP):")
+        print(f"  Score:    {result.get('issup')}")
+        if result.get('evidence'):
+            for e in result['evidence']:
+                print(f"  - {e}")
+
+        print("\nUSEFULNESS (IsUSE):")
+        print(f"  Score:    {result.get('isuse')}")
+        print(f"  Reason:   {result.get('use_reason')}")
+
+        print("\nFINAL ANSWER:")
+        print("-" * 20)
+        print(result.get('answer'))
+        print("-" * 20)
+        print("="*30 + "\n")
+
     except Exception as e:
-        logger.error(f"API Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Execution failed: {str(e)}")
 
 if __name__ == "__main__":
-    # Run the server
-    # On your Linux server, you would run this via: uv run python -m uvicorn ...
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=8000)
+    # Test with a question that exists in your PDFs
+    # run_agentic_rag("What are the features of NexaInsight?")
+    
+    # Test with a question that might need rewriting/revision
+    run_agentic_rag("who is the ceo of nexaai?")

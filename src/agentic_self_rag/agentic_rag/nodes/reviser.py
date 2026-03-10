@@ -1,14 +1,16 @@
+from src.agentic_self_rag.utils.llm_factory import ModelFactory
+from src.agentic_self_rag.core.logger import logger
+
 def revise_answer(state: dict):
-    """
-    If the answer is hallucinated or not useful, try to regenerate it.
-    """
-    logger.info("--- REVISING ANSWER ---")
-    question = state["question"]
-    documents = state["documents"]
-    
+    """Strictly refines the answer using only context quotes."""
+    logger.warning("--- REVISING ANSWER (STRICT MODE) ---")
     llm = ModelFactory.get_llm(model_type="main")
     
-    # Simple re-generation logic for now
-    response = llm.invoke(f"Refine the following answer for better accuracy and groundedness. \nQuestion: {question} \nContext: {documents}")
+    prompt = (
+        "You are a STRICT reviser. Use ONLY the CONTEXT quotes to answer. "
+        f"Context: {state['context']}\nQuestion: {state['question']}"
+    )
     
-    return {"generation": response.content}
+    out = llm.invoke(prompt)
+    logger.info(f"--- REVISED ANSWER: {out.content} ---")
+    return {"answer": out.content, "retries": state.get("retries", 0) + 1}

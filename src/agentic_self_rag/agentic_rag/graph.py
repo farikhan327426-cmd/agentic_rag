@@ -1,86 +1,73 @@
-from langgraph.graph import END, StateGraph
+from langgraph.graph import StateGraph, END, START
 from src.agentic_self_rag.agentic_rag.state import AgentState
-from src.agentic_self_rag.agentic_rag.nodes.router import route_question
-from src.agentic_self_rag.agentic_rag.nodes.retrieve import retrieve
-from src.agentic_self_rag.agentic_rag.nodes.generate import generate, generate_direct
-from src.agentic_self_rag.agentic_rag.nodes.graders import (
-    grade_documents, 
-    grade_generation_v_documents, 
-    grade_generation_v_question
-)
-from src.agentic_self_rag.agentic_rag.nodes.rewriter import rewrite_question
-from src.agentic_self_rag.agentic_rag.nodes.reviser import revise_answer
-from src.agentic_self_rag.agentic_rag.edges import (
-    decide_to_generate, 
-    grade_generation_v_documents_and_question
+from src.agentic_self_rag.agentic_rag.nodes import (
+    router, retrieve, graders, generate, rewriter, reviser
 )
 
 def create_graph():
     workflow = StateGraph(AgentState)
 
-    # 1. Define the Nodes (The Boxes in your diagram)
-    workflow.add_node("router", route_question)
-    workflow.add_node("retrieve", retrieve)
-    workflow.add_node("grade_documents", grade_documents)
-    workflow.add_node("generate", generate)
-    workflow.add_node("generate_direct", generate_direct)
-    workflow.add_node("rewrite_question", rewrite_question)
-    workflow.add_node("grade_hallucination", grade_generation_v_documents)
-    workflow.add_node("grade_utility", grade_generation_v_question)
-    workflow.add_node("revise_answer", revise_answer)
+    # Define Nodes
+    workflow.add_node("decide_retrieval", router.route_question)
+    workflow.add_node("retrieve", retrieve.retrieve)
+    workflow.add_node("is_relevant", graders.is_relevant)
+    workflow.add_node("generate_from_context", generate.generate)
+    workflow.add_node("generate_direct", generate.generate_direct)
+    workflow.add_node("is_sup", graders.is_sup)
+    workflow.add_node("revise_answer", reviser.revise_answer)
+    workflow.add_node("is_use", graders.is_use)
+    workflow.add_node("rewrite_question", rewriter.rewrite_question)
+    workflow.add_node("no_answer_found", lambda x: {"answer": "No answer found."})
 
-    # 2. Build the Edges (The Arrows in your diagram)
-    workflow.set_entry_point("router")
+    # Define Edges & Routing
+    workflow.set_entry_point("decide_retrieval")
 
-    # Entry Logic
     workflow.add_conditional_edges(
-        "router",
-        lambda x: "retrieve" if x["route"] == "vectorstore" else "generate_direct"
-    )
-
-    # RAG Path
-    workflow.add_edge("retrieve", "grade_documents")
-    
-    workflow.add_conditional_edges(
-        "grade_documents",
-        lambda x: "generate" if x["relevance"] == "yes" else "rewrite_question",
+        "decide_retrieval",
+        lambda x: "retrieve" if x["route"] == "vectorstore" else "generate_direct",
         {
-            "generate": "generate",
-            "rewrite_question": "rewrite_question"
+            "retrieve": "retrieve",
+            "generate_direct": "generate_direct"
         }
     )
 
-    # Rewrite Loop
-    workflow.add_edge("rewrite_question", "retrieve")
-
-    # Generation & Self-Correction Path
-    workflow.add_edge("generate", "grade_hallucination")
+    workflow.add_edge("retrieve", "is_relevant")
 
     workflow.add_conditional_edges(
-        "grade_hallucination",
-        lambda x: "grade_utility" if x["hallucination"] == "supported" else "revise_answer",
+        "is_relevant",
+        lambda x: "generate_from_context" if x["relevant_docs"] else "no_answer_found",
         {
-            "grade_utility": "grade_utility",
+            "generate_from_context": "generate_from_context",
+            "no_answer_found": "no_answer_found"
+        }
+    )
+
+    workflow.add_edge("generate_from_context", "is_sup")
+
+    workflow.add_conditional_edges(
+        "is_sup",
+        lambda x: "is_use" if x["issup"] == "fully_supported" or x["retries"] > 5 else "revise_answer",
+        {
+            "is_use": "is_use",
             "revise_answer": "revise_answer"
         }
     )
+    workflow.add_edge("revise_answer", "is_sup")
 
     workflow.add_conditional_edges(
-        "grade_utility",
-        lambda x: END if x["utility"] == "useful" else "revise_answer",
+        "is_use",
+        lambda x: END if x["isuse"] == "useful" else "rewrite_question" if x["rewrite_tries"] < 3 else "no_answer_found",
         {
             END: END,
-            "revise_answer": "revise_answer"
+            "rewrite_question": "rewrite_question",
+            "no_answer_found": "no_answer_found"
         }
     )
+    workflow.add_edge("rewrite_question", "retrieve")
 
-    # Revise back to checking
-    workflow.add_edge("revise_answer", "grade_hallucination")
-    
-    # Direct Path
     workflow.add_edge("generate_direct", END)
+    workflow.add_edge("no_answer_found", END)
 
     return workflow.compile()
 
-# Compile the graph
 app = create_graph()

@@ -26,7 +26,7 @@ def route_question(state: dict):
         if "router_prompts" not in prompts:
             raise ConfigurationError("Missing 'router_prompts' in config/prompts.yaml")
             
-        system_prompt = prompts["router_prompts"]["router_instructions"]
+        system_prompt = prompts["router_prompts"]["instructions"]
 
         # 2. Get decision using structured output
         llm = ModelFactory.get_llm(model_type="cheap")

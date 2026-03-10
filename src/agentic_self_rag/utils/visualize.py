@@ -1,4 +1,4 @@
-from src.agentic_self_rag.agentic_rag.graph import get_graph
+from agentic_self_rag.agentic_rag.graph import get_graph
 from IPython.display import Image, display
 
 def save_graph_image(output_path: str = "graph.png"):

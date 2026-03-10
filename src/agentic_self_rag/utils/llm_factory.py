@@ -3,9 +3,9 @@ from typing import Union
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_openai import ChatOpenAI
-from src.agentic_self_rag.core.config_loader import settings
-from src.agentic_self_rag.core.logger import logger
-from src.agentic_self_rag.core.exceptions import ModelProviderError
+from agentic_self_rag.core.config_loader import settings
+from agentic_self_rag.core.logger import logger
+from agentic_self_rag.core.exceptions import ModelProviderError
 
 
 class ModelFactory:

@@ -2,9 +2,9 @@
 
 import yaml
 from pydantic import BaseModel, Field
-from src.agentic_self_rag.utils.llm_factory import ModelFactory
-from src.agentic_self_rag.core.logger import logger
-from src.agentic_self_rag.core.exceptions import ConfigurationError
+from agentic_self_rag.utils.llm_factory import ModelFactory
+from agentic_self_rag.core.logger import logger
+from agentic_self_rag.core.exceptions import ConfigurationError
 from ..state import AgentState
 
 # Load prompts once at module import time

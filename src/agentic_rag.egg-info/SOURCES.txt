@@ -33,5 +33,6 @@ src/agentic_self_rag/tools/custom_tools.py
 src/agentic_self_rag/tools/search_tool.py
 src/agentic_self_rag/utils/__init__.py
 src/agentic_self_rag/utils/llm_factory.py
+src/agentic_self_rag/utils/visualize.py
 tests/test_nodes.py
 tests/test_retrieval.py

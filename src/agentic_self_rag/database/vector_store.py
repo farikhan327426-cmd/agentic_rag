@@ -1,7 +1,7 @@
 from qdrant_client.http import models
-from src.agentic_self_rag.database.connection import qdrant_manager
-from src.agentic_self_rag.core.logger import logger
-from src.agentic_self_rag.core.config_loader import settings
+from agentic_self_rag.database.connection import qdrant_manager
+from agentic_self_rag.core.logger import logger
+from agentic_self_rag.core.config_loader import settings
 
 class VectorStore:
     def __init__(self):

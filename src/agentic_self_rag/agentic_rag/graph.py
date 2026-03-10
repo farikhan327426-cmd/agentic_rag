@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END, START
-from src.agentic_self_rag.agentic_rag.state import AgentState
-from src.agentic_self_rag.agentic_rag.nodes import (
+from agentic_self_rag.agentic_rag.state import AgentState
+from agentic_self_rag.agentic_rag.nodes import (
     router, retrieve, graders, generate, rewriter, reviser
 )
 

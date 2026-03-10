@@ -1,6 +1,6 @@
 from qdrant_client import QdrantClient
-from src.agentic_self_rag.core.config_loader import settings
-from src.agentic_self_rag.core.logger import logger
+from agentic_self_rag.core.config_loader import settings
+from agentic_self_rag.core.logger import logger
 
 class QdrantManager:
     """

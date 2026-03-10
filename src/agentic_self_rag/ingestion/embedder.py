@@ -1,8 +1,8 @@
 from uuid import uuid4
 from qdrant_client.http import models
-from src.agentic_self_rag.database.vector_store import VectorStore
-from src.agentic_self_rag.utils.llm_factory import ModelFactory
-from src.agentic_self_rag.core.logger import logger
+from agentic_self_rag.database.vector_store import VectorStore
+from agentic_self_rag.utils.llm_factory import ModelFactory
+from agentic_self_rag.core.logger import logger
 
 class DataIngestor:
     def __init__(self):

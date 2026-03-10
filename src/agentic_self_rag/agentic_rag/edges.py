@@ -1,4 +1,4 @@
-from src.agentic_self_rag.core.logger import logger
+from agentic_self_rag.core.logger import logger
 
 def decide_to_generate(state):
     """Determines whether to generate an answer or re-route/rewrite."""

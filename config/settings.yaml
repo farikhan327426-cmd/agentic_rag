@@ -11,7 +11,7 @@ embeddings:
   model: "gemini-embedding-001" 
 
 vector_db:
-  url: "http://localhost:6333" # This will work for your Docker setup
+  url: "http://qdrant-service:6333" # This will work for your Docker setup
   collection_name: "agentic_rag_docs"
 
 # OpenRouter fallback if Groq hits rate limits

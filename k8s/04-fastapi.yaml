@@ -7,7 +7,7 @@ metadata:
   labels:
     app: agentic-rag
 spec:
-  replicas: 2  # Production standard for high availability
+  replicas: 1  # Production standard for high availability
   selector:
     matchLabels:
       app: agentic-rag

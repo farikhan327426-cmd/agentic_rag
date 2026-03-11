@@ -19,7 +19,7 @@ spec:
       containers:
       - name: api
         # YAHAN APNI ACTUAL GHCR IMAGE KA LINK DAALNA HAI
-        image: an327426-cmd/agentic_rag:sha-fc77add:latest
+        image: ghcr.io/farikhan327426-cmd/agentic_rag:sha-2d6cc89:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

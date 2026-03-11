@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image
+name: Build, Publish, and Deploy
 
 on:
   push:
@@ -9,10 +9,11 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # ==========================================
+  # 1. CI JOB (Build & Push Image to GHCR)
+  # ==========================================
   build-and-push-image:
     runs-on: ubuntu-latest
-    
-    # Yeh GitHub ko permission deta hai ke wo aapke packages (GHCR) mein write kar sake
     permissions:
       contents: read
       packages: write
@@ -44,3 +45,30 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # ==========================================
+  # 2. CD JOB (Deploy to your K3s Server)
+  # ==========================================
+  deploy-to-server:
+    # Yeh job tab tak start nahi hogi jab tak build successfully GHCR mein na chali jaye
+    needs: build-and-push-image 
+    # Yeh job directly aapke 'my-server' par chalegi
+    runs-on: self-hosted 
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to K3s Cluster
+        run: |
+          # Ensure KUBECONFIG is loaded so the runner can talk to K3s
+          export KUBECONFIG=~/.kube/config
+          
+          echo "Applying Kubernetes Manifests..."
+          kubectl apply -f k8s/
+          
+          echo "Forcing K3s to pull the new image and restart FastAPI pods (Zero Downtime)..."
+          kubectl rollout restart deployment/agentic-rag-api
+          
+          echo "Waiting for pods to be successfully running..."
+          kubectl rollout status deployment/agentic-rag-api

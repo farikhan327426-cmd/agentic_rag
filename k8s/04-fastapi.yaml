@@ -1,0 +1,67 @@
+---
+# 1. DEPLOYMENT: Pulls image from GHCR and attaches Secrets
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentic-rag-api
+  labels:
+    app: agentic-rag
+spec:
+  replicas: 2  # Production standard for high availability
+  selector:
+    matchLabels:
+      app: agentic-rag
+  template:
+    metadata:
+      labels:
+        app: agentic-rag
+    spec:
+      containers:
+      - name: api
+        # YAHAN APNI ACTUAL GHCR IMAGE KA LINK DAALNA HAI
+        image: an327426-cmd/agentic_rag:sha-fc77add 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            name: ai-secrets  # Yeh wo secret hai jo aap server par inject kar chuke hain
+        resources:
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# 2. SERVICE: Internal DNS for the API
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentic-rag-service
+spec:
+  selector:
+    app: agentic-rag
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+
+---
+# 3. INGRESS: NGINX rule to expose API to the internet
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agentic-rag-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false" # Turn true when SSL is added
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: agentic-rag-service
+            port:
+              number: 80

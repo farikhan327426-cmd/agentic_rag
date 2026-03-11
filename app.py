@@ -9,6 +9,7 @@ from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.ingestion.processor import DocumentProcessor
 from src.agentic_self_rag.ingestion.embedder import DataIngestor
+from src.agentic_self_rag.database.vector_store import VectorStore  # <-- NEW IMPORT ADDED HERE
 import os
 import shutil
 import tempfile
@@ -31,6 +32,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- NEW STARTUP EVENT ADDED HERE ---
+@app.on_event("startup")
+async def startup_event():
+    """
+    Ensure the Qdrant database collection exists before accepting requests.
+    """
+    logger.info("Checking and initializing Qdrant Vector Database...")
+    try:
+        vs = VectorStore()
+        vs.create_collection()
+        logger.info("Qdrant collection is ready and available.")
+    except Exception as e:
+        logger.error(f"Error initializing Qdrant collection: {e}")
+# ------------------------------------
 
 # Request Data Model
 class QueryRequest(BaseModel):

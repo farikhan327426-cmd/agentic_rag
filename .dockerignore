@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# Environments
+.venv
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Data and Configs
+.env
+data/
+*.log
+eval_output.log
+
+# IDEs
+.vscode/
+.idea/

@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Install uv
 RUN pip install --no-cache-dir uv
@@ -12,7 +12,7 @@ COPY pyproject.toml uv.lock ./
 
 # Create virtual environment and install dependencies
 RUN uv venv .venv && \
-    .venv/bin/python -m uv sync --frozen
+    uv sync --frozen
 
 # Stage 2: Runtime
 FROM python:3.12-slim

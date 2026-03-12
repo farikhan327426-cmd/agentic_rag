@@ -93,10 +93,12 @@ async def ask_question(request: QueryRequest):
     history = []
     if current_state and current_state.values:
         history = current_state.values.get("chat_history", [])
-        
+        logger.debug(f"Loaded history from Redis for session {request.session_id}: {history}")
+    
     # TOKEN SAVER: Sirf aakhri 4 messages yaad rakho
     if len(history) > 4:
         history = history[-4:]
+    logger.debug(f"Truncated history (last 4) before invoking graph: {history}")
     
     # 3. Initial state banayein
     initial_state = {

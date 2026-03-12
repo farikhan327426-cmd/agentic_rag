@@ -24,10 +24,11 @@ def generate(state: AgentState):
 
     # 3. Format the prompt
     context = "\n\n".join([doc["text"] for doc in relevant_docs])
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Context: {context}\n\nQuestion: {question}"}
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
+    # replay previous conversation so the model can recall earlier turns
+    for turn in chat_history:
+        messages.append(turn)
+    messages.append({"role": "user", "content": f"Context: {context}\n\nQuestion: {question}"})
 
     # 4. Invoke LLM
     response = llm.invoke(messages)
@@ -52,10 +53,10 @@ def generate_direct(state: AgentState):
     system_prompt = PROMPTS["rag_prompts"]["direct_instructions"]
 
     llm = ModelFactory.get_llm(model_type="main")
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Question: {question}"}
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
+    for turn in chat_history:
+        messages.append(turn)
+    messages.append({"role": "user", "content": f"Question: {question}"})
     response = llm.invoke(messages)
     new_history = chat_history + [
         {"role": "user", "content": question},

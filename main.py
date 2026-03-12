@@ -1,18 +1,29 @@
 from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from dotenv import load_dotenv
+from redis import Redis
+import os
 
 # Load environment variables
 load_dotenv()
 
-def run_agentic_rag(query: str):
+def run_agentic_rag(query: str, session_id: str = None):
     """
     Orchestrates the Self-RAG execution and prints a professional debug report.
+
+    If `session_id` is supplied the graph will load and persist state under
+    that key, demonstrating the Redis saver behaviour.  After running we also
+    inspect Redis for any cache/state keys associated with the session.
     """
-    logger.info(f"--- STARTING EXECUTION FOR: {query} ---")
+    logger.info(f"--- STARTING EXECUTION FOR: {query} (session={session_id}) ---")
     
     # Get the compiled graph instance (lazy initialization)
     graph = get_graph()
+
+    graph_config = {"recursion_limit": 50}
+    if session_id:
+        graph_config["configurable"] = {"thread_id": session_id}
+
     # Initial State matching your specific requirements
     initial_state = {
         "question": query,
@@ -33,8 +44,19 @@ def run_agentic_rag(query: str):
     # Run the graph (using recursion_limit for the revise/rewrite loops)
     try:
         # We use invoke to get the final result, or stream for real-time logs
-        result = graph.invoke(initial_state, config={"recursion_limit": 50})
+        result = graph.invoke(initial_state, config=graph_config)
         
+        # after run, if session provided, peek at state stored in Redis
+        if session_id:
+            redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
+            r = Redis.from_url(redis_url)
+            key_pattern = f"langgraph:state:*{session_id}*"
+            stored = r.keys(key_pattern)
+            print(f"\nsession keys matching {key_pattern}: {stored}")
+            # show any LLM cache entries created during this invocation
+            cache_keys = r.keys("langchain:cache:*")
+            print(f"llm cache keys now in Redis: {cache_keys}\n")
+
         # Professional Output Report
         print("\n" + "="*30)
         print("     RAG EXECUTION REPORT")
@@ -68,4 +90,7 @@ if __name__ == "__main__":
     # run_agentic_rag("What are the features of NexaInsight?")
     
     # Test with a question that might need rewriting/revision
-    run_agentic_rag("who is the ceo of nexaai?")
+    # include a session id to exercise the Redis saver and history
+    run_agentic_rag("who is the ceo of nexaai?", session_id="demo_user")
+    # feel free to run again with the same query+session to see cache hits
+    run_agentic_rag("who is the ceo of nexaai?", session_id="demo_user")

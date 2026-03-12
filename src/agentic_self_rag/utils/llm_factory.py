@@ -12,7 +12,22 @@ class ModelFactory:
     """
     Factory class to instantiate LLMs and Embedding models 
     based on the centralized configuration.
+
+    This implementation memoizes created LLM objects in a class-level
+    cache, so that the same provider/model/temperature combination is
+    reused across requests.  Reusing the instance is important for two
+    reasons:
+    1. avoids the startup overhead of constructing a new client on every call,
+    2. ensures the RedisCache attached via `set_llm_cache` is actually
+       consulted (many wrappers only check the global cache once per
+       object).
     """
+
+    _instances: dict = {}
+
+    @staticmethod
+    def _cache_key(provider: str, model_name: str, temperature: float) -> tuple:
+        return (provider, model_name, temperature)
 
     @staticmethod
     def get_llm(model_type: str = "main"):
@@ -30,20 +45,22 @@ class ModelFactory:
             
         temp = settings.get("llm", {}).get("temperature", 0)
 
+        key = ModelFactory._cache_key(provider, model_name, temp)
+        if key in ModelFactory._instances:
+            return ModelFactory._instances[key]
+
         try:
             if provider == "groq":
                 logger.info(f"Initializing Groq LLM: {model_name}")
-                return ChatGroq(
+                instance = ChatGroq(
                     api_key=settings.env.GROQ_API_KEY,
-                    #api_key=groq_api_key,
                     model=model_name,
                     temperature=temp
                 )
-                #logger.info(f"Groq LLM initialized: {model_name}")
 
             elif provider == "google":
                 logger.info(f"Initializing Google LLM: {model_name}")
-                return ChatGoogleGenerativeAI(
+                instance = ChatGoogleGenerativeAI(
                     api_key=settings.env.GOOGLE_API_KEY,
                     model=model_name,
                     temperature=temp
@@ -51,8 +68,7 @@ class ModelFactory:
 
             elif provider == "openrouter":
                 logger.info(f"Initializing OpenRouter LLM: {model_name}")
-                # OpenRouter uses OpenAI SDK with a different base URL
-                return ChatOpenAI(
+                instance = ChatOpenAI(
                     api_key=settings.env.OPENROUTER_API_KEY,
                     base_url="https://openrouter.ai/api/v1",
                     model=model_name,
@@ -61,6 +77,10 @@ class ModelFactory:
 
             else:
                 raise ModelProviderError(f"Unsupported provider: {provider}")
+
+            # save for future reuse
+            ModelFactory._instances[key] = instance
+            return instance
 
         except Exception as e:
             logger.error(f"Failed to initialize LLM: {str(e)}")

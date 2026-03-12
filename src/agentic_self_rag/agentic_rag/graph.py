@@ -71,8 +71,9 @@ def create_graph():
     workflow.add_edge("no_answer_found", END)
     # Connect to Redis for Long-term Agent Memory
     redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
+    redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
     redis_client = Redis.from_url(redis_url)
-    checkpointer = RedisSaver(redis_client)
+    checkpointer = RedisSaver(conn=redis_client)
 
     return workflow.compile(checkpointer=checkpointer)
 

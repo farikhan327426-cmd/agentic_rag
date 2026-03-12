@@ -71,7 +71,10 @@ def create_graph():
     workflow.add_edge("no_answer_found", END)
     # Connect to Redis for Long-term Agent Memory
     redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
-    checkpointer = RedisSaver.from_conn_string(redis_url)
+    checkpointer = RedisSaver(redis_url=redis_url)
+    
+    # Pehli dafa Redis mein tables/indices banane ke liye setup zaroori hai
+    checkpointer.setup()
 
     return workflow.compile(checkpointer=checkpointer)
 

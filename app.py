@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 from typing import List
 import uvicorn
 from dotenv import load_dotenv
-
+from langchain.globals import set_llm_cache
+from langchain_community.cache import RedisCache
+from redis import Redis
 from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.ingestion.processor import DocumentProcessor
@@ -44,6 +46,9 @@ async def startup_event():
         vs = VectorStore()
         vs.create_collection()
         logger.info("Qdrant collection is ready and available.")
+        logger.info("Initializing Redis LLM Cache for Fast Responses...")
+        redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
+        set_llm_cache(RedisCache(redis_=Redis.from_url(redis_url)))
     except Exception as e:
         logger.error(f"Error initializing Qdrant collection: {e}")
 # ------------------------------------
@@ -76,11 +81,22 @@ async def ask_question(request: QueryRequest):
     The query will be dynamically routed, retrieved, graded, generated, and iteratively improved.
     """
     logger.info(f"--- API REQUEST RECEIVED FOR: {request.query} ---")
+
+    # --- HISTORY FETCH AND TOKEN LIMITING LOGIC ---
+    current_state = rag_graph.get_state(graph_config)
+    history = []
+    if current_state and current_state.values:
+        history = current_state.values.get("chat_history", [])
+        
+    # TOKEN SAVER: Sirf aakhri 4 messages (2 QA pairs) yaad rakho!
+    if len(history) > 4:
+        history = history[-4:]
     
     # Establish uniform initial state for the StateGraph representation
     initial_state = {
         "question": request.query,
         "retrieval_query": "",
+        "chat_history": history,
         "rewrite_tries": 0,
         "route": "not_evaluated",
         "docs": [],

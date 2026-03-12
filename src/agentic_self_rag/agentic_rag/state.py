@@ -6,6 +6,7 @@ class AgentState(TypedDict):
     rewrite_tries: int        # Counter for query rewriting
     need_retrieval: bool      # Result from router
     route: str                # Routing decision
+    chat_history: List[dict]
 
     docs: List[dict]          # Raw chunks from Qdrant
     relevant_docs: List[dict] # Filtered chunks

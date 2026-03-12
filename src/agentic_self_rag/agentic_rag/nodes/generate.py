@@ -13,6 +13,7 @@ def generate(state: AgentState):
     """
     question = state["question"]
     relevant_docs = state["relevant_docs"]
+    chat_history = state.get("chat_history", [])
     logger.info("--- GENERATING ANSWER ---")
 
     # 1. Access prompt from memory (loaded at module import)
@@ -30,9 +31,13 @@ def generate(state: AgentState):
 
     # 4. Invoke LLM
     response = llm.invoke(messages)
+    new_history = chat_history + [
+        {"role": "user", "content": question},
+        {"role": "assistant", "content": response.content}
+    ]
     
     logger.info(f"--- GENERATED ANSWER: {response.content} ---")
-    return {"answer": response.content, "context": context, "question": question}
+    return {"answer": response.content, "context": context, "question": question, "chat_history": new_history}
 
 
 def generate_direct(state: AgentState):
@@ -40,6 +45,7 @@ def generate_direct(state: AgentState):
     Generate an answer without using RAG context.
     """
     question = state["question"]
+    chat_history = state.get("chat_history", [])
     logger.info("--- GENERATING DIRECT ANSWER ---")
 
     # Access prompt from memory (loaded at module import)
@@ -51,6 +57,10 @@ def generate_direct(state: AgentState):
         {"role": "user", "content": f"Question: {question}"}
     ]
     response = llm.invoke(messages)
+    new_history = chat_history + [
+        {"role": "user", "content": question},
+        {"role": "assistant", "content": response.content}
+    ]
     
     logger.info(f"--- GENERATED DIRECT ANSWER: {response.content} ---")
-    return {"answer": response.content}
+    return {"answer": response.content, "chat_history": new_history}

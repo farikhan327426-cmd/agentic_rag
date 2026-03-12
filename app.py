@@ -78,21 +78,27 @@ class QueryResponse(BaseModel):
 async def ask_question(request: QueryRequest):
     """
     Submit a query to the Agentic Self-RAG architecture.
-    The query will be dynamically routed, retrieved, graded, generated, and iteratively improved.
     """
     logger.info(f"--- API REQUEST RECEIVED FOR: {request.query} ---")
 
-    # --- HISTORY FETCH AND TOKEN LIMITING LOGIC ---
+    # 1. PEHLE graph aur config ko initialize karein!
+    rag_graph = get_graph()
+    graph_config = {
+        "recursion_limit": 50,
+        "configurable": {"thread_id": request.session_id}
+    }
+
+    # 2. PHIR history fetch karein (ab error nahi aayega)
     current_state = rag_graph.get_state(graph_config)
     history = []
     if current_state and current_state.values:
         history = current_state.values.get("chat_history", [])
         
-    # TOKEN SAVER: Sirf aakhri 4 messages (2 QA pairs) yaad rakho!
+    # TOKEN SAVER: Sirf aakhri 4 messages yaad rakho
     if len(history) > 4:
         history = history[-4:]
     
-    # Establish uniform initial state for the StateGraph representation
+    # 3. Initial state banayein
     initial_state = {
         "question": request.query,
         "retrieval_query": "",
@@ -111,15 +117,9 @@ async def ask_question(request: QueryRequest):
     }
 
     try:
-        # We use invoke sequentially for REST APIs
-        rag_graph = get_graph()  # Lazy initialization on first use
-        graph_config = {
-            "recursion_limit": 50,
-            "configurable": {"thread_id": request.session_id}
-        }
+        # 4. Aur aakhir mein graph chalayein
         result = rag_graph.invoke(initial_state, config=graph_config)
         
-        # Structure the successful execution payload
         return QueryResponse(
             question=request.query,
             answer=result.get("answer", "No answer found."),
@@ -134,7 +134,6 @@ async def ask_question(request: QueryRequest):
     
     except Exception as e:
         logger.error(f"Execution failed: {str(e)}")
-        # Raise standard API exception instead of raw traceback
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to process query through Self-RAG pipeline: {str(e)}"

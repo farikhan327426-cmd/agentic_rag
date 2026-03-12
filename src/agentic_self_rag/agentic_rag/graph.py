@@ -3,7 +3,9 @@ from agentic_self_rag.agentic_rag.state import AgentState
 from agentic_self_rag.agentic_rag.nodes import (
     router, retrieve, graders, generate, rewriter, reviser
 )
-
+from langgraph.checkpoint.redis import RedisSaver
+from redis import Redis
+import os
 def create_graph():
     workflow = StateGraph(AgentState)
 
@@ -67,8 +69,12 @@ def create_graph():
 
     workflow.add_edge("generate_direct", END)
     workflow.add_edge("no_answer_found", END)
+    # Connect to Redis for Long-term Agent Memory
+    redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
+    redis_client = Redis.from_url(redis_url)
+    checkpointer = RedisSaver(redis_client)
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
 
 
 # Lazy initialization - graph is only compiled when explicitly requested

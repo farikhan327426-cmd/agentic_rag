@@ -53,6 +53,8 @@ metadata:
   name: agentic-rag-ingress
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false" # Turn true when SSL is added
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180" # 5 minutes
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "180" # 5 minutes
 spec:
   ingressClassName: nginx
   rules:

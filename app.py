@@ -55,6 +55,7 @@ class QueryRequest(BaseModel):
         example="Describe the culture and pricing model.",
         description="The natural language question to ask the RAG system."
     )
+    session_id: str = Field(default="user_123", description="Unique ID to remember conversation")
 
 # Response Data Model
 class QueryResponse(BaseModel):
@@ -96,7 +97,11 @@ async def ask_question(request: QueryRequest):
     try:
         # We use invoke sequentially for REST APIs
         rag_graph = get_graph()  # Lazy initialization on first use
-        result = rag_graph.invoke(initial_state, config={"recursion_limit": 50})
+        graph_config = {
+            "recursion_limit": 50,
+            "configurable": {"thread_id": request.session_id}
+        }
+        result = rag_graph.invoke(initial_state, config=graph_config)
         
         # Structure the successful execution payload
         return QueryResponse(

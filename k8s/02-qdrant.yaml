@@ -1,3 +1,17 @@
+# 1. NEW: The Persistent Storage Request (PVC)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-storage-claim
+spec:
+  accessModes:
+    - ReadWriteOnce # Iska matlab hai sirf Qdrant isko write karega
+  resources:
+    requests:
+      storage: 5Gi  # Aapke vectors ke liye 5GB reserve kar rahe hain
+
+---
+# 2. UPDATED DEPLOYMENT
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +36,19 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
+        # NAYA CODE: Container ko batana ke data kahan save karna hai
+        volumeMounts:
+        - name: qdrant-data
+          mountPath: /qdrant/storage  # Qdrant by default yahan data rakhta hai
+      
+      # NAYA CODE: Physical Volume ko Pod ke sath link karna
+      volumes:
+      - name: qdrant-data
+        persistentVolumeClaim:
+          claimName: qdrant-storage-claim
+
 ---
+# 3. SERVICE (Same as before)
 apiVersion: v1
 kind: Service
 metadata:

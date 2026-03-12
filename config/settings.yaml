@@ -18,3 +18,7 @@ vector_db:
 fallback:
   provider: "openrouter"
   model: "anthropic/claude-3-haiku"
+
+# Add this at the bottom
+redis:
+  url: "redis://redis-service:6379"

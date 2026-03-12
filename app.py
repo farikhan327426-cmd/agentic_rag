@@ -159,7 +159,7 @@ async def ingest_document(file: UploadFile = File(...)):
             "message": f"Successfully ingested {file.filename}", 
             "chunks_processed": len(chunks)
         }
-        
+        #exceptipn handling for file processing and ingestion errors
     except Exception as e:
         logger.error(f"Ingestion API failed for {file.filename}: {str(e)}")
         raise HTTPException(

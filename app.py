@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from typing import List
 import uvicorn
 from dotenv import load_dotenv
-from langchain.globals import set_llm_cache
+from langchain_core.globals import set_llm_cache
 from langchain_community.cache import RedisCache
 from redis import Redis
 from src.agentic_self_rag.agentic_rag.graph import get_graph

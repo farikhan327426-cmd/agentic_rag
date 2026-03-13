@@ -4,9 +4,6 @@ from pydantic import BaseModel, Field
 from typing import List
 import uvicorn
 from dotenv import load_dotenv
-from langchain_core.globals import set_llm_cache, get_llm_cache
-#from langchain_community.cache import RedisSemanticCache
-from langchain_redis import RedisSemanticCache
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 import time as time_module
@@ -14,12 +11,11 @@ from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.ingestion.processor import DocumentProcessor
 from src.agentic_self_rag.ingestion.embedder import DataIngestor
-from src.agentic_self_rag.database.vector_store import VectorStore  # <-- NEW IMPORT ADDED HERE
+from src.agentic_self_rag.database.vector_store import VectorStore
 import os
 import json
 import hashlib
 import shutil
-from src.agentic_self_rag.utils.llm_factory import ModelFactory
 import tempfile
 
 # Load environment variables
@@ -31,6 +27,7 @@ app = FastAPI(
     description="Professional enterprise API for querying documents via Self-Reflective Agentic RAG.",
     version="1.0.0"
 )
+
 # Create a standard Redis client specifically for API-level string caching
 api_redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://redis-service:6379"), decode_responses=True)
 
@@ -54,7 +51,7 @@ app.add_middleware(
 redis_client = None
 redis_cache_enabled = False
 
-# --- NEW STARTUP EVENT ADDED HERE ---
+# --- UPDATED STARTUP EVENT ---
 @app.on_event("startup")
 async def startup_event():
     """
@@ -66,17 +63,8 @@ async def startup_event():
         vs.create_collection()
         logger.info("Qdrant collection is ready and available.")
         
-        logger.info("Initializing Redis Semantic LLM Cache for Fast Responses...")
-        redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
-        embeddings = ModelFactory.get_embeddings()
-        
-        # Updated for langchain_redis compatibility
-        set_llm_cache(RedisSemanticCache(
-            redis_url=redis_url,
-            embeddings=embeddings,       # PLURAL
-            distance_threshold=0.10      # REPLACED score_threshold
-        ))
-        logger.info("Redis Semantic Cache initialized successfully.")
+        # NOTE: LangChain RedisSemanticCache has been completely removed.
+        # We are relying strictly on the highly efficient exact-match API cache.
         
     except Exception as e:
         logger.error(f"Error initializing services: {e}")
@@ -233,7 +221,6 @@ async def ingest_document(file: UploadFile = File(...)):
             "message": f"Successfully ingested {file.filename}", 
             "chunks_processed": len(chunks)
         }
-        #exceptipn handling for file processing and ingestion errors
     except Exception as e:
         logger.error(f"Ingestion API failed for {file.filename}: {str(e)}")
         raise HTTPException(

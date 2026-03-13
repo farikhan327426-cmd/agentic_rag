@@ -5,7 +5,8 @@ from typing import List
 import uvicorn
 from dotenv import load_dotenv
 from langchain_core.globals import set_llm_cache, get_llm_cache
-from langchain_community.cache import RedisSemanticCache
+#from langchain_community.cache import RedisSemanticCache
+from langchain_redis import RedisSemanticCache
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 import time as time_module
@@ -56,15 +57,13 @@ async def startup_event():
         
         logger.info("Initializing Redis Semantic LLM Cache for Fast Responses...")
         redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
-        
-        # Instantiate your Google Generative AI Embeddings from settings.yaml
         embeddings = ModelFactory.get_embeddings()
         
-        # Apply the Semantic Cache globally to all LLM calls in your LangGraph
+        # Updated for langchain_redis compatibility
         set_llm_cache(RedisSemanticCache(
             redis_url=redis_url,
-            embedding=embeddings,
-            score_threshold=0.10  # This represents vector distance. 0.10 distance roughly equals 90% similarity. Adjust as needed.
+            embeddings=embeddings,       # PLURAL
+            distance_threshold=0.10      # REPLACED score_threshold
         ))
         logger.info("Redis Semantic Cache initialized successfully.")
         

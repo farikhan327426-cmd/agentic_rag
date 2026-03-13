@@ -4,9 +4,11 @@ from pydantic import BaseModel, Field
 from typing import List
 import uvicorn
 from dotenv import load_dotenv
-from langchain_core.globals import set_llm_cache
-from langchain_community.cache import RedisCache
+from langchain_core.globals import set_llm_cache, get_llm_cache
+from langchain_community.cache import RedisSemanticCache
 from redis import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+import time as time_module
 from src.agentic_self_rag.agentic_rag.graph import get_graph
 from src.agentic_self_rag.core.logger import logger
 from src.agentic_self_rag.ingestion.processor import DocumentProcessor
@@ -14,6 +16,7 @@ from src.agentic_self_rag.ingestion.embedder import DataIngestor
 from src.agentic_self_rag.database.vector_store import VectorStore  # <-- NEW IMPORT ADDED HERE
 import os
 import shutil
+from src.agentic_self_rag.utils.llm_factory import ModelFactory
 import tempfile
 
 # Load environment variables
@@ -35,6 +38,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global Redis client for health checks
+redis_client = None
+redis_cache_enabled = False
+
 # --- NEW STARTUP EVENT ADDED HERE ---
 @app.on_event("startup")
 async def startup_event():
@@ -46,11 +53,23 @@ async def startup_event():
         vs = VectorStore()
         vs.create_collection()
         logger.info("Qdrant collection is ready and available.")
-        logger.info("Initializing Redis LLM Cache for Fast Responses...")
+        
+        logger.info("Initializing Redis Semantic LLM Cache for Fast Responses...")
         redis_url = os.getenv("REDIS_URL", "redis://redis-service:6379")
-        set_llm_cache(RedisCache(redis_=Redis.from_url(redis_url)))
+        
+        # Instantiate your Google Generative AI Embeddings from settings.yaml
+        embeddings = ModelFactory.get_embeddings()
+        
+        # Apply the Semantic Cache globally to all LLM calls in your LangGraph
+        set_llm_cache(RedisSemanticCache(
+            redis_url=redis_url,
+            embedding=embeddings,
+            score_threshold=0.10  # This represents vector distance. 0.10 distance roughly equals 90% similarity. Adjust as needed.
+        ))
+        logger.info("Redis Semantic Cache initialized successfully.")
+        
     except Exception as e:
-        logger.error(f"Error initializing Qdrant collection: {e}")
+        logger.error(f"Error initializing services: {e}")
 # ------------------------------------
 
 # Request Data Model

@@ -16,6 +16,8 @@ from src.agentic_self_rag.ingestion.processor import DocumentProcessor
 from src.agentic_self_rag.ingestion.embedder import DataIngestor
 from src.agentic_self_rag.database.vector_store import VectorStore  # <-- NEW IMPORT ADDED HERE
 import os
+import json
+import hashlib
 import shutil
 from src.agentic_self_rag.utils.llm_factory import ModelFactory
 import tempfile
@@ -29,6 +31,15 @@ app = FastAPI(
     description="Professional enterprise API for querying documents via Self-Reflective Agentic RAG.",
     version="1.0.0"
 )
+# Create a standard Redis client specifically for API-level string caching
+api_redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://redis-service:6379"), decode_responses=True)
+
+def get_api_cache_key(query: str) -> str:
+    """Normalizes the question and creates a unique Redis hash key."""
+    # Lowercase and remove extra spaces so "What is AI?" and "what is ai?" match perfectly
+    clean_query = " ".join(query.lower().split())
+    query_hash = hashlib.md5(clean_query.encode()).hexdigest()
+    return f"api_cache:query:{query_hash}"
 
 # Configure CORS for full-stack frontend interactions
 app.add_middleware(
@@ -95,30 +106,42 @@ class QueryResponse(BaseModel):
 @app.post("/api/v1/ask", response_model=QueryResponse, tags=["RAG Application"])
 async def ask_question(request: QueryRequest):
     """
-    Submit a query to the Agentic Self-RAG architecture.
+    Submit a query to the Agentic Self-RAG architecture with API-Level Redis Caching.
     """
     logger.info(f"--- API REQUEST RECEIVED FOR: {request.query} ---")
 
-    # 1. PEHLE graph aur config ko initialize karein!
+    # =================================================================
+    # ⚡ 1. THE REDIS GATEWAY CACHE (The 50ms shortcut)
+    # =================================================================
+    cache_key = get_api_cache_key(request.query)
+    
+    try:
+        cached_result = api_redis_client.get(cache_key)
+        if cached_result:
+            logger.info("--- ⚡ REDIS CACHE HIT! Bypassing LangGraph entirely. ---")
+            parsed_result = json.loads(cached_result)
+            return QueryResponse(**parsed_result)
+    except Exception as e:
+        logger.warning(f"Redis API cache check failed, proceeding to LangGraph: {e}")
+
+    logger.info("--- 🐢 CACHE MISS! Routing query to LangGraph Pipeline ---")
+    # =================================================================
+
+    # 2. Initialize Graph and History
     rag_graph = get_graph()
     graph_config = {
         "recursion_limit": 50,
         "configurable": {"thread_id": request.session_id}
     }
 
-    # 2. PHIR history fetch karein (ab error nahi aayega)
     current_state = rag_graph.get_state(graph_config)
     history = []
     if current_state and current_state.values:
         history = current_state.values.get("chat_history", [])
-        logger.debug(f"Loaded history from Redis for session {request.session_id}: {history}")
     
-    # TOKEN SAVER: Sirf aakhri 4 messages yaad rakho
     if len(history) > 4:
         history = history[-4:]
-    logger.debug(f"Truncated history (last 4) before invoking graph: {history}")
     
-    # 3. Initial state banayein
     initial_state = {
         "question": request.query,
         "retrieval_query": "",
@@ -137,20 +160,36 @@ async def ask_question(request: QueryRequest):
     }
 
     try:
-        # 4. Aur aakhir mein graph chalayein
+        # 3. Execute Graph
         result = rag_graph.invoke(initial_state, config=graph_config)
         
-        return QueryResponse(
-            question=request.query,
-            answer=result.get("answer", "No answer found."),
-            route=result.get("route", "N/A"),
-            rewrite_tries=result.get("rewrite_tries", 0),
-            revisions=result.get("retries", 0),
-            is_supported=result.get("issup", "N/A"),
-            evidence=result.get("evidence", []),
-            is_useful=result.get("isuse", "N/A"),
-            use_reason=result.get("use_reason", "")
-        )
+        final_response = {
+            "question": request.query,
+            "answer": result.get("answer", "No answer found."),
+            "route": result.get("route", "N/A"),
+            "rewrite_tries": result.get("rewrite_tries", 0),
+            "revisions": result.get("retries", 0),
+            "is_supported": result.get("issup", "N/A"),
+            "evidence": result.get("evidence", []),
+            "is_useful": result.get("isuse", "N/A"),
+            "use_reason": result.get("use_reason", "")
+        }
+
+        # =================================================================
+        # 💾 4. SAVE TO REDIS CACHE FOR FUTURE REQUESTS
+        # =================================================================
+        try:
+            # Save the successful response in Redis for 24 hours (86400 seconds)
+            api_redis_client.setex(
+                name=cache_key,
+                time=86400,
+                value=json.dumps(final_response)
+            )
+            logger.info(f"--- 💾 SAVED TO REDIS CACHE: {cache_key} ---")
+        except Exception as e:
+            logger.warning(f"Failed to save to Redis cache: {e}")
+
+        return QueryResponse(**final_response)
     
     except Exception as e:
         logger.error(f"Execution failed: {str(e)}")
